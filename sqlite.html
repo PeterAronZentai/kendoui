@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>JayStorm Get Started</title>
+    <link href="examples/content/shared/styles/examples-offline.css" rel="stylesheet">
+    <!--<link href="styles/kendo.default.min.css" rel="stylesheet" />-->
+    <link href="styles/kendo.common.min.css" rel="stylesheet">
+    <link href="styles/kendo.bootstrap.min.css" rel="stylesheet" />
+    <!--<link href="styles/kendo.metroblack.min.css" rel="stylesheet">-->
+    <!--<link href="styles/kendo.metro.min.css" rel="stylesheet" />-->
+    <script src="http://code.jquery.com/jquery.min.js" type="text/javascript"></script>
+
+    <script src="src/js/kendo.web.js"></script>
+    <script src="src/js/kendo.grid.js"></script>
+    <script src="src/js/kendo.tabstrip.js"></script>
+    <script src="examples/content/shared/js/console.js"></script>
+
+    <script src="http://include.jaydata.org/datajs-1.0.3.min.js" type="text/javascript"></script>
+    <script src="http://include.jaydata.org/jaydata.js" type="text/javascript"></script>
+
+    <script src="jaydata-kendods.js" type="text/javascript"></script>
+
+    <script type="text/javascript" charset="utf-8">
+        $data.service("NorthwindService.svc", function (f, t) {
+            var localDB = new t({ name: 'sqLite', databaseName: 'nw' });
+            var remoteDB = f();
+
+            function sync(remote, local) {
+                var suppliers = remote.Suppliers.toArray();
+                var categories = remote.Categories.toArray();
+                var products = remote.Products.toArray();
+                return $.when(suppliers, categories, products)
+                        .then(function (suppliers, categories, products) {
+                            local.addMany(suppliers);
+                            local.addMany(categories);
+                            local.addMany(products);
+                            return local.saveChanges();
+                        });
+            }
+
+            $.when(remoteDB.onReady(), localDB.onReady())
+             .then(function () {
+                 return localDB.Categories.length();
+             })
+            .then(function (count) {
+                if (count < 1) {
+                    return sync(remoteDB, localDB);
+                } else {
+                    return count;
+                }
+            })
+            .then(function () {
+                console.log("here!");
+                return localDB.Categories.toArray();
+            })
+            .then(function () {
+                var options = {
+                    dataSource: localDB.Categories.asKendoDataSource({ pageSize: 25, batch: false }),
+                    filterable: true,
+                    sortable: true,
+                    pageable: true,
+                    height: 500,
+                    columns: localDB.Categories.asKendoColumns().prepend({ command: "delete" }),
+                    toolbar: ["create", "save", "cancel"],
+                    editable: true
+                };
+                $('#grid').kendoGrid(options);
+            });
+        });
+    </script>
+</head>
+<body>
+    <div id="grid">
+
+    </div>
+</body>
+</html>

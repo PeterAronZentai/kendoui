@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>JayStorm Get Started</title>
+    <link href="examples/content/shared/styles/examples-offline.css" rel="stylesheet">
+    <!--<link href="styles/kendo.default.min.css" rel="stylesheet" />-->
+    <link href="styles/kendo.common.min.css" rel="stylesheet">
+    <link href="styles/kendo.bootstrap.min.css" rel="stylesheet" />
+    <!--<link href="styles/kendo.metroblack.min.css" rel="stylesheet">-->
+    <!--<link href="styles/kendo.metro.min.css" rel="stylesheet" />-->
+    <script src="http://code.jquery.com/jquery.min.js" type="text/javascript"></script>
+
+    <script src="src/js/kendo.web.js"></script>
+    <script src="src/js/kendo.grid.js"></script>
+    <script src="src/js/kendo.tabstrip.js"></script>
+    <script src="examples/content/shared/js/console.js"></script>
+
+    <script src="http://include.jaydata.org/datajs-1.0.3.min.js" type="text/javascript"></script>
+    <script src="http://include.jaydata.org/jaydata.min.js" type="text/javascript"></script>
+    <script src="http://include.jaydata.org/jaystorm-1.0.0.js" type="text/javascript"></script>
+
+    <script src="jaydata-kendods.js" type="text/javascript"></script>
+
+    <script type="text/javascript" charset="utf-8">
+        // <![CDATA[
+        //var apiKey = {
+        //    appId: '133e0907-f70b-4f11-92b3-dfebc9bdd6db',
+        //    serviceName: 'mydatabase',
+        //    license: 'business'
+        //    //url: '/jaydata/Services/emptyNewsReader.svc'
+
+        //};
+
+        //var credentials = {
+        //    user: 'admin',
+        //    password: 'admin'
+        //};
+
+        //var viewModel = new kendo.data.Model({
+        //    firstName: "John",
+        //    lastName: "Doe",
+        //    foobar: { "foo": "bar"},
+        //    genders: ["Male", "Female"],
+        //    gender: "Male",
+        //    agreed: false,
+        //    confirmed: false,
+        //    register: function (e) {
+        //        e.preventDefault();
+        //        this.set("confirmed", true);
+        //    },
+        //    startOver: function () {
+        //        this.set("confirmed", false);
+        //        this.set("agreed", false);
+        //        this.set("gender", "Male");
+        //        this.set("firstName", "John");
+        //        this.set("lastName", "Doe");
+        //    }
+        //});
+        //p = viewModel;
+        //$(function () {
+        //    kendo.bind($("form"), viewModel);
+        //});
+        
+        //$data.initService(apiKey, credentials).then(function (mydatabase, factory, type) {
+        $data.service("NorthwindService.svc", function(f,t) {
+            //x = mydatabase;
+            //var q = mydatabase.Categories.toArray(function (items) {
+            //    xx = items;
+            //});;//.map(function (c) { return { Manufacturer: c.Manufacturer, Year: c.Year }; })
+            /*.include('Category')*/
+            //.filter('it.Manufacturer.startsWith("V")')
+            //    ;
+
+            //$("#grid").kendoGrid({
+            //    dataSource: q.asKendoDataSource({ pageSize: 5 }),
+            //    filterable: true,
+            //    sortable: true,
+            //    pageable: true,
+            //    height: 800,
+            //    selectable: true,
+            //    toolbar: ["create", "save", "cancel"],
+            //    columns: q.asKendoColumns(), // ["Year", "Manufacturer", { command: ["edit", "create", "destroy", "update"]}],
+            //    editable: true // true
+            //});
+            //tabStrip.bind("acti
+            //f = function () { return new t({ name: 'sqLite', databaseName: 'nw' }); }
+            var mydatabase = f();
+
+            mydatabase.onReady(function () {
+
+                //var supplierQuery = mydatabase.Suppliers.map("{ value: it.Supplier_ID, text: it.Company_Name}").toArray();
+                //var categoryQuery = mydatabase.Categories.map("{ value: it.Category_ID, text: it.Category_Name}").toArray();
+
+                //cols = [{ command: ["destroy"] }].concat(cols);
+                ////if (setName == "Products") {
+                //cols.forEach(function (col) {
+                //    if (col.field === "Supplier_ID") {
+                //        col.values = suppliers;
+                //    } else if (col.field === "Category_ID") {
+                //        col.values = categories;
+                //    }
+                //});
+
+                //$.when(supplierQuery, categoryQuery).then(function (suppliers, categories) {
+                //mydatabase.storageProvider.providerConfiguration.maxDataServiceVersion = "3.0";
+                //console.log(mydatabase.storageProvider.providerConfiguration.maxDataServiceVersion);
+                    var tabStrip = $("#tabstrip").kendoTabStrip({
+                        activate: function (e) {
+                            var setName = $(e.item).text();
+                            var mydb = f();
+                            var entitySet = mydb[setName];
+                            if ($(e.contentElement).text() === 'loading...') {
+                                var cols = entitySet.asKendoColumns().prepend({ command: "edit" }).append({ command: "destroy" });
+                                console.log("cols",cols);
+                                var options = {
+                                    dataSource: entitySet.asKendoDataSource({ pageSize: 25, batch: true}),
+                                    filterable: true,
+                                    sortable: true,
+                                    pageable: true,
+                                    height: 500,
+                                    columns: cols,
+                                    toolbar: ["create", "save", "cancel"],
+                                    editable: true
+                                };
+                                $(e.contentElement).empty();
+                                $(e.contentElement).append($("<div id='grid'></div>").kendoGrid(options));
+                            }
+                            console.dir();
+                        }
+                    }).data("kendoTabStrip");
+
+                    mydatabase.EntitySetNames.forEach(function (setName) {
+                        tabStrip.append([{
+                            text: setName,
+                            content: 'loading...'
+                        }]);
+                    });
+                //});
+
+                //return;
+                //$('#listView').kendoListView({
+                //    dataSource: mydatabase.EntitySets,
+                //    template: kendo.template($("#template").html()),
+                //    selectable: true,
+                //    change: function () {
+                //        var index = this.select().index();
+                //        var dataItem = this.dataSource.view()[index];
+                //        var mydb = f();
+                //        var cols = mydb[dataItem].asKendoColumns();
+                //        cols = [{ command: ["destroy"] }].concat(cols);
+                //        console.dir(cols);
+
+                //        var options = {
+                //            dataSource: mydb[dataItem].asKendoDataSource({ pageSize: 25, batch: true }),
+                //            filterable: true,
+                //            sortable: true,
+                //            pageable: true,
+                //            height: 500,
+                //            //selectable: "multiple",
+                //            columns: cols,
+                //            //scrollable: {virtual: true},
+                //            toolbar: ["create", "save"],
+                //            editable: "inline"
+                //        };
+                //        if (($('#grid').data("kendoGrid"))) {
+                //            console.log("destroy");
+                //            $('#grid').data("kendoGrid").destroy();
+                //        }
+                //        $('#gridHolder').empty();
+
+                //        $('#gridHolder').append($("<div id='grid'></div>").kendoGrid(options));
+                //    }
+
+                //});
+            });
+
+         });
+    </script>
+</head>
+<body>
+    <script type="text/x-kendo-tmpl" id="template">
+        <div class="product">
+            ${ data }
+        </div>
+    </script>
+
+    <div id="listView" style="width:150px;float:left">
+
+    </div>
+
+    <div id="gridHolder" style="width:900px;float:left">
+
+    </div>
+
+    <div id="tabstrip">
+    </div>
+</body>
+</html>

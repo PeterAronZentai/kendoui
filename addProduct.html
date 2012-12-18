@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>JayStorm Get Started</title>
+    <link href="examples/content/shared/styles/examples-offline.css" rel="stylesheet">
+    <!--<link href="styles/kendo.default.min.css" rel="stylesheet" />-->
+    <link href="styles/kendo.common.min.css" rel="stylesheet">
+    <link href="styles/kendo.bootstrap.min.css" rel="stylesheet" />
+    <!--<link href="styles/kendo.metroblack.min.css" rel="stylesheet">-->
+    <!--<link href="styles/kendo.metro.min.css" rel="stylesheet" />-->
+    <script src="http://code.jquery.com/jquery.min.js" type="text/javascript"></script>
+
+    <script src="src/js/kendo.web.js"></script>
+    <script src="src/js/kendo.grid.js"></script>
+    <script src="src/js/kendo.tabstrip.js"></script>
+    <script src="examples/content/shared/js/console.js"></script>
+
+    <script src="http://include.jaydata.org/datajs-1.0.3.min.js" type="text/javascript"></script>
+    <script src="http://include.jaydata.org/jaydata.min.js" type="text/javascript"></script>
+    <script src="http://include.jaydata.org/jaystorm-1.0.0.js" type="text/javascript"></script>
+
+    <script src="jaydata-kendods.js" type="text/javascript"></script>
+
+    <script type="text/javascript" charset="utf-8">
+        $data.service("NorthwindService.svc", function(f,t) {
+            var mydatabase = f();
+
+            mydatabase.onReady(function () {
+                var supplierQuery = mydatabase.Suppliers.map("{ value: it.Supplier_ID, text: it.Company_Name}").toArray();
+                var categoryQuery = mydatabase.Categories.map("{ value: it.Category_ID, text: it.Category_Name}").toArray();
+
+                $.when(supplierQuery, categoryQuery).then(function (suppliers, categories) {
+                    var options = {
+                        dataSource: mydatabase.Products.asKendoDataSource({ pageSize: 25, batch: false }),
+                        filterable: true,
+                        sortable: true,
+                        pageable: true,
+                        height: 500,
+                        columns: mydatabase.Products
+                                           .asKendoColumns()
+                                           .setColumn("Supplier_ID", { values: suppliers, defaultValue: 1 })
+                                           .setColumn("Category_ID", { values: categories, defaultValue: 1 })
+                                           .append({ command: "edit" })
+                                           .append({ command: "delete" }),
+                        toolbar: ["create", "save", "cancel"],
+                        editable: "popup"
+                    };
+                    $('#grid').kendoGrid(options);
+                });
+            });
+         });
+    </script>
+</head>
+<body>
+    <div id="grid">
+
+    </div>
+</body>
+</html>
