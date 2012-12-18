@@ -18,6 +18,7 @@ public class NorthwindService : DataService<NorthwindEntities>
         // TODO: set rules to indicate which entity sets and service operations are visible, updatable, etc.
         // Examples:
         config.SetEntitySetAccessRule("*", EntitySetRights.All);
+        config.UseVerboseErrors = true;
         // config.SetServiceOperationAccessRule("MyServiceOperation", ServiceOperationRights.All);
         config.DataServiceBehavior.MaxProtocolVersion = DataServiceProtocolVersion.V3;
     }

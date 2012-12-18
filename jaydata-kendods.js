@@ -1,4 +1,126 @@
 (function ($data) {
+
+    var oldProcessor = $data.Entity.inheritedTypeProcessor;
+    $data.Entity.inheritedTypeProcessor = function (type) {
+
+        var memberDefinitions = type.memberDefinitions;
+
+        function getKendoTypeName(jayDataTypeName) {
+            jayDataTypeName = $data.Container.resolveName(jayDataTypeName);
+            switch (jayDataTypeName) {
+                case "$data.Blob":
+                case "$data.String":
+                    return "string";
+                case "$data.Boolean":
+                    return "boolean";
+                case "$data.Integer":
+                case "$data.Number":
+                    return "number";
+                case "$data.Date":
+                    return "date";
+                default:
+                    return 'string'; // TODO ???
+                    throw new Error("unimplemented: " + jayDataTypeName);
+            }
+        };
+
+
+        function createKendoModel(newInstanceDelegate) {
+            console.log("creating type");
+            var memberDefinitions = type.memberDefinitions,
+                fields = {};
+
+            memberDefinitions
+                .getPublicMappedProperties()
+                .forEach(function (pd) {
+                    if (pd.dataType !== "Array" && !(pd.inverseProperty)) {
+                        fields[pd.name] = {
+                            type: getKendoTypeName(pd.type),
+                            nullable: pd.nullable,
+                            editable: !pd.computed,
+                            defaultValue: pd.type === "Edm.Boolean" ? true : null,
+                            validation: {
+                                required: pd.required
+                            }
+                        }
+                    };
+                });
+
+
+            console.dir(memberDefinitions.getPublicMappedMethods());
+            var modelDefinition = {
+                fields: fields,
+                init: function (data) {
+                    //console.dir(arguments);
+                    var jayInstance = data instanceof type ? data : new type(data);
+                    var seed = jayInstance.initData;
+                    var self = this;
+                    this.innerInstance = function () { return jayInstance }
+
+                    kendo.data.Model.fn.init.call(this, seed);
+                    jayInstance.propertyChanged.attach(function (obj, propinfo) {
+                        //var delta = {};
+                        //delta[propinfo.propertyName] = propinfo.newValue;
+                        //self.accept(delta);
+                        self.set(propinfo.propertyName, propinfo.newValue)
+                    });
+                    this.bind("set", function (e) {
+                        var v = jayInstance[e.field];
+                        if (v !== e.value) {
+                            jayInstance[e.field] = e.value;
+                        }
+                    });
+                    if (newInstanceDelegate) {
+                        newInstanceDelegate(jayInstance);
+                    }
+                },
+                save: function () {
+                    this.innerInstance().save();
+                }
+
+            };
+
+            var keyProperties = memberDefinitions.getKeyProperties();
+            switch (keyProperties.length) {
+                case 0:
+                    break;
+                case 1:
+                    modelDefinition.id = keyProperties[0].name;
+                    break;
+                default:
+                    console.warn("entity with multiple keys not supported");
+                    break;
+            }
+
+            var returnValue = kendo.data.Model.define(modelDefinition);
+            return returnValue;
+        }
+
+        function asKendoModel(newInstanceDelegate) {
+            var cacheObject = newInstanceDelegate || type;
+            return cacheObject.kendoModelType || (cacheObject.kendoModelType = createKendoModel(newInstanceDelegate));
+        }
+
+        function asKendoObservable(instance) {
+
+            var kendoModel = type.asKendoModel();
+            return new kendoModel(instance);
+        }
+
+        type.asKendoModel = asKendoModel;
+
+        type.prototype.asKendoObservable = function () {
+            var self = this;
+
+            var kendoObservable = asKendoObservable(this);
+
+            return kendoObservable;
+        }
+
+        if (oldProcessor) {
+            oldProcessor(type);
+        }
+    }
     $data.Queryable.addMember("asKendoColumns", function (columns) {
         //console.log('col', this, arguments);
         var result = [];
@@ -54,6 +176,7 @@
         });
     }); 
 
+    
     //modelCache = {};
     //transportCache = {};
     //alert($data.EntityContext.addProperty);
@@ -128,55 +251,9 @@
         return result;
     }
 
-    $data.Queryable.addMember("asKendoModel", function () {
+    $data.Queryable.addMember("asKendoModel", function (newInstanceDelegate) {
+        return this.defaultType.asKendoModel(newInstanceDelegate);
 
-        function getKendoTypeName(jayDataTypeName) {
-            jayDataTypeName = $data.Container.resolveName(jayDataTypeName);
-            switch (jayDataTypeName) {
-                case "$data.Blob":
-                case "$data.String":
-                    return "string";
-                case "$data.Boolean":
-                    return "boolean";
-                case "$data.Integer":
-                case "$data.Number":
-                    return "number";
-                case "$data.Date":
-                    return "date";
-                default:
-                    return 'string'; // TODO ???
-                    throw new Error("unimplemented: " + jayDataTypeName);
-            }
-        };
-
-        var self = this;
-        var result = {};
-
-        self.defaultType.memberDefinitions
-            .getPublicMappedProperties()
-            .forEach(function (pd) {
-                if (pd.dataType !== "Array" && !(pd.inverseProperty)) {
-                    result[pd.name] = {
-                        type: getKendoTypeName(pd.type),
-                        nullable: (pd.type === "Edm.Boolean" ? true : pd.nullable),
-                        editable: !pd.computed,
-                        validation: {
-                            required: (pd.type === "Edm.Boolean" ? false : pd.required)
-                        }
-                    }
-                };
-            });
-        console.dir(result);
-        returnValue = kendo.data.Model.define({
-            id: self.defaultType.memberDefinitions.getKeyProperties()[0].name,
-            fields: result
-            //,
-            //init: function () {
-            //    kendo.data.Model.apply(this, arguments);
-            //}
-        });
-        console.dir(result);
-        return returnValue;
     });
     
     $data.Queryable.addMember("asKendoRemoteTransportClass", function (modelItemClass) {
@@ -186,8 +263,8 @@
             ctx.stateManager.reset();
         };
         var TransportClass =  kendo.data.RemoteTransport.extend({
-            init: function () {
-                console.log("init");
+            init: function (dynamicEntries) {
+                de = dynamicEntries;
             },
             read: function (options) {
                 var query = self;
@@ -268,33 +345,24 @@
                     //var result = items.map(function (item) { return item instanceof $data.Entity ? new model(item.initData) : item; });
                     
                     var result = items.map(function (item) {
+
                         var d = (item instanceof $data.Entity) ? item.initData : item;
-                        var kendoItem = new modelItemClass(d);
-                        kendoItem.bind("change", function (e) {
-                            if (ctx.stateManager.trackedEntities.indexOf(item) < 0) {
-                                console.log("attaching");
-                                ctx.attach(item);
-                            }
-                            item[e.field] = this.get(e.field);
-                        });
+
+                        var kendoItem = item.asKendoObservable();//new modelItemClass(d);
+                        //kendoItem.bind("change", function (e) {
+                        //    if (ctx.stateManager.trackedEntities.indexOf(item) < 0) {
+                        //        console.log("attaching");
+                        //        ctx.attach(item);
+                        //    }
+                        //    item[e.field] = this.get(e.field);
+                        //});
                         return kendoItem;
                     });
 
-                    //result.forEach(function (modelItem) {
-                    //    modelItem.bind("change", function () {
-                    //        console.log("change event", arguments);
-                    //    });
-                    //    modelItem.bind("get", function () {
-                    //        console.log("get event", arguments);
-                    //    });
-                    //    modelItem.bind("set", function () {
-                    //        console.log("set event", arguments);
-                    //    });
-
-                    //});
-                    //console.log({ data: result, total: total });
-                    //xxxx = result;
-                    options.success({ data: result, total: total });
+                    options.success({
+                        data: result,
+                        total: total
+                    });
                 });
             },
             create: function (options) {
@@ -317,22 +385,27 @@
                 
                 //var jayInstance = new jayType(options.data);
                 //ctx.add(jayInstance);
-                ctx.saveChanges().then(function () {
-                    //var kendoItem = new modelItemClass(jayInstance.initData);
-                    var data = jd.map(function (j) { return j.initData });
-                    options.success({ "data": data });
-                });
+                ctx.saveChanges()
+                   .then(function () {
+                       //var kendoItem = new modelItemClass(jayInstance.initData);
+                       var data = jd.map(function (j) { return j.initData });
+                       options.success({ "data": data });
+                   })
+                   .fail(function () {
+                       options.error("error");
+                       //alert("error!");
+                   });
+                   
                 
             },
             update: function (options) {
-                
-                console.log("update"); console.dir(arguments);
+                console.log("update");
+                console.dir(arguments);
                 ctx.saveChanges().then(function () {
                     //options.data.FullName = 'a';
                     options.success(options.data);
                 }).fail(function () {
-                    alert("error");
-                    options.error();
+                    options.error("error");
                 });
                 //self.toArray(function () {
                 //});
@@ -372,7 +445,9 @@
                 //var d = new $.Deferred();
                 //return d.promise();
             },
-            setup: function () { console.log("setup"); console.dir(arguments); }
+            setup: function () {
+                console.log("setup"); console.dir(arguments);
+            }
         });
         return TransportClass;
     });
@@ -380,9 +455,13 @@
     $data.Queryable.addMember("asKendoDataSource", function (ds) {
         var self = this;
 
-        var model = self.asKendoModel();
+        var newEntries = [];
 
-        ds = ds || {};
+        var model = self.asKendoModel(function (item) { newEntries.push(item); });
+
+        ds = ds || {
+
+        };
         //unless user explicitly opts out server side logic
         //we just force it.
         ds.serverPaging = ds.serverPaging || true;
@@ -391,14 +470,13 @@
         ds.pageSize = ds.pageSize || 25;
 
         var TransportClass = self.asKendoRemoteTransportClass(model);
-        ds.transport = new TransportClass();
+        ds.transport = new TransportClass(newEntries);
 
         ds.schema = {
             model: model,
             data: "data",
             total: "total"
         };
-        console.log(ds);
         return new kendo.data.DataSource(ds);
     });
 })($data);
