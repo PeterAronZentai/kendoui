@@ -19,7 +19,7 @@
                 case "$data.Date":
                     return "date";
                 default:
-                    return 'string'; // TODO ???
+                    return 'object'; // TODO ???
                     throw new Error("unimplemented: " + jayDataTypeName);
             }
         };
@@ -33,7 +33,7 @@
             memberDefinitions
                 .getPublicMappedProperties()
                 .forEach(function (pd) {
-                    if (pd.dataType !== "Array" && !(pd.inverseProperty)) {
+                    //if (pd.dataType !== "Array" && !(pd.inverseProperty)) {
                         fields[pd.name] = {
                             type: getKendoTypeName(pd.type),
                             nullable: false,
@@ -43,7 +43,7 @@
                                 required: pd.required
                             }
                         }
-                    };
+                    //};
                 });
 
 
@@ -53,11 +53,32 @@
                 init: function (data) {
                     //console.dir(arguments);
                     var jayInstance = data instanceof type ? data : new type(data);
+
                     var seed = jayInstance.initData;
+                    var feed = {};
+                    //TODO create precompiled strategy
+                    for (var j in seed) {
+                        var md = type.getMemberDefinition(j);
+                        var seedValue = seed[j];
+                        if (seedValue instanceof $data.Entity) {
+                            var kendoInstance = seedValue.asKendoObservable();
+                            feed[j] = kendoInstance;
+                        } else if (md && md.type === "Array") {
+                            var jayType = $data.Container.resolveType(md.elementType);
+                            var kendoType = jayType.asKendoModel();
+                            var feedValue = new kendo.data.ObservableArray(seed[j], kendoType);
+                            feed[j] = feedValue;
+                        } else {
+                            feed[j] = seedValue;
+                        }
+                    }
+
                     var self = this;
                     this.innerInstance = function () { return jayInstance }
 
-                    kendo.data.Model.fn.init.call(this, seed);
+
+
+                    kendo.data.Model.fn.init.call(this, feed);
                     jayInstance.propertyChanged.attach(function (obj, propinfo) {
                         self.set(propinfo.propertyName, propinfo.newValue)
                     });
@@ -131,12 +152,12 @@
             .memberDefinitions
             .getPublicMappedProperties()
             .forEach(function (pd) {
-                if (pd.dataType !== "Array" && !(pd.inverseProperty)) {
+                //if (pd.dataType !== "Array" && !(pd.inverseProperty)) {
                     var col = (columns[pd.name] ? columns[pd.name] : {});
                     var colD = { field: pd.name };
                     $.extend(colD, col)
                     result.push(colD);
-                }
+                //}
             });
 
         function append(field) {
@@ -178,80 +199,6 @@
         });
     }); 
 
-    
-    //modelCache = {};
-    //transportCache = {};
-    //alert($data.EntityContext.addProperty);
-
-    $data.Entity.prototype.asKendoObservable = function () {
-        function getKendoTypeName(jayDataTypeName) {
-            jayDataTypeName = $data.Container.resolveName(jayDataTypeName);
-            switch (jayDataTypeName) {
-                case "$data.Blob":
-                case "$data.String":
-                    return "string";
-                case "$data.Boolean":
-                    return "boolean";
-                case "$data.Integer":
-                case "$data.Number":
-                    return "number";
-                case "$data.Date":
-                    return "date";
-                default:
-                    return 'string'; // TODO ???
-                    throw new Error("unimplemented: " + jayDataTypeName);
-            }
-        };
-
-        var self = this;
-        var result = {};
-        //xxxx = self.getType().memberDefinitions;
-        self.getType().memberDefinitions
-            .getPublicMappedProperties()
-            .forEach(function (pd) {
-                result[pd.name] = self[pd.name];
-                //result[pd.name] = {
-                //    type: getKendoTypeName(pd.type),
-                //    nullable: pd.nullable,
-                //    editable: !pd.computed,
-                //    validation: {
-                //        required: pd.required
-                //    }
-                //}
-            });
-
-        self.getType().memberDefinitions
-            .getPublicMappedMethods()
-            .forEach(function (pd) {
-                //console.dir(pd);
-                result[pd.name] = function () {
-                    pd.method.apply(self, arguments);
-                }
-            });
-
-        //returnValue = kendo.data.Model.define({
-        //    id: self.getType().memberDefinitions.getKeyProperties()[0].name,
-        //    fields: result
-        //    //,
-        //    //init: function () {
-        //    //    kendo.data.Model.apply(this, arguments);
-        //    //}
-        //});
-        console.dir(result);
-        var result = kendo.observable(result);
-        self.propertyChanged.attach(function (obj, propinfo) {
-            result.set(propinfo.propertyName, propinfo.newValue);
-        });
-        result.bind("set", function (e) {
-            var v = self[e.field];
-            if (v !== e.value) {
-                self[e.field] = e.value;
-            }
-        });
-
-
-        return result;
-    }
 
     $data.Queryable.addMember("asKendoModel", function (newInstanceDelegate) {
         return this.defaultType.asKendoModel(newInstanceDelegate);

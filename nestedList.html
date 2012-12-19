@@ -19,8 +19,8 @@
     <script src="examples/content/shared/js/console.js"></script>
 
     <script src="http://include.jaydata.org/datajs-1.0.3.min.js" type="text/javascript"></script>
-    <script src="http://include.jaydata.org/jaydata.min.js" type="text/javascript"></script>
-
+<!--    <script src="http://include.jaydata.org/jaydata.min.js" type="text/javascript"></script>-->
+    <script src="Scripts/jaydata.js"></script>
     <script src="jaydata-kendods.js" type="text/javascript"></script>
 
     <script type="text/javascript" charset="utf-8">
@@ -89,14 +89,22 @@
             //    return { Product_ID: item.Product_ID, Product_Name: item.Product_Name }
             //})
             $('#grid').kendoGrid({
-                dataSource: mydatabase.Products.asKendoDataSource({
+                dataSource: mydatabase.Products
+                                .include("Order_Details")
+                                .include("Category").asKendoDataSource({
                     batch: false,
                     error: function () {
                                     console.dir(arguments);
                                     alert("!");
                                 }
                 }),
-                columns: mydatabase.Products.asKendoColumns().prepend({command:["destroy","edit"]}), 
+                columns: [{ command: "edit" },
+                            "Product_ID",
+                            { field: "Category", template: "#= Category.Category_Name #" },
+                            { field: "Order_Details", template: "#=Order_Details.length#"}
+                         ],
+                //{ field: "Category_Products", template: "#= Category.Products.length #" }
+                //columns: mydatabase.Products.asKendoColumns().prepend({command:["destroy","edit"]}), 
                 pageable: true,
                 editable: "inline",
                 sortable: true,
@@ -118,10 +126,10 @@
             }
             //p = new mydatabase.Products.elementType({Product_ID: 0, Product_Name: "ABC" });
             //kendo.bind($('#mvvm'), p.asKendoObservable());
-            //mydatabase.Products.first().then(function (product) {
-            //    p = product;
-            //    kendo.bind($('#mvvm'), product.asKendoObservable());
-            //});
+            mydatabase.Products.first().then(function (product) {
+                p = product;
+                kendo.bind($('#mvvm'), product.asKendoObservable());
+            });
 
 
             //var _ds = mydatabase.Flowers.asKendoDataSource({ pageSize: 5 });
