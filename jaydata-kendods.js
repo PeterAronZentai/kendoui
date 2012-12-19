@@ -36,9 +36,9 @@
                     if (pd.dataType !== "Array" && !(pd.inverseProperty)) {
                         fields[pd.name] = {
                             type: getKendoTypeName(pd.type),
-                            nullable: pd.nullable,
+                            nullable: false,
                             editable: !pd.computed,
-                            defaultValue: pd.type === "Edm.Boolean" ? true : null,
+                            //defaultValue: pd.type === "Edm.Boolean" ? true : undefined,
                             validation: {
                                 required: pd.required
                             }
@@ -59,9 +59,6 @@
 
                     kendo.data.Model.fn.init.call(this, seed);
                     jayInstance.propertyChanged.attach(function (obj, propinfo) {
-                        //var delta = {};
-                        //delta[propinfo.propertyName] = propinfo.newValue;
-                        //self.accept(delta);
                         self.set(propinfo.propertyName, propinfo.newValue)
                     });
                     this.bind("set", function (e) {
@@ -93,6 +90,11 @@
             }
 
             var returnValue = kendo.data.Model.define(modelDefinition);
+            //TODO align with kendoui concept
+            for (var j in returnValue.prototype.defaults) {
+                returnValue.prototype.defaults[j] = undefined;
+            }
+            //console.log("default", returnValue.prototype.defaults)
             return returnValue;
         }
 
@@ -264,12 +266,12 @@
         };
         var TransportClass =  kendo.data.RemoteTransport.extend({
             init: function (dynamicEntries) {
-                de = dynamicEntries;
+                this.de = dynamicEntries;
+                this.items = [];
             },
             read: function (options) {
                 var query = self;
                 var _this = this;
-                reset();
                 if (options.data.filter) {
 
                     console.log(options.data.filter);
@@ -345,17 +347,8 @@
                     //var result = items.map(function (item) { return item instanceof $data.Entity ? new model(item.initData) : item; });
                     
                     var result = items.map(function (item) {
-
                         var d = (item instanceof $data.Entity) ? item.initData : item;
-
-                        var kendoItem = item.asKendoObservable();//new modelItemClass(d);
-                        //kendoItem.bind("change", function (e) {
-                        //    if (ctx.stateManager.trackedEntities.indexOf(item) < 0) {
-                        //        console.log("attaching");
-                        //        ctx.attach(item);
-                        //    }
-                        //    item[e.field] = this.get(e.field);
-                        //});
+                        var kendoItem = item.asKendoObservable();
                         return kendoItem;
                     });
 
@@ -368,39 +361,45 @@
             create: function (options) {
                 console.log("create");
                 console.dir(arguments);
+                var batch = false;
                 var jayType = self.defaultType;
                 var d = options.data;
                 if ("models" in d) {
                     d = d.models;
+                    batch = true;
                 };
+
                 if (!(Array.isArray(d))) {
                     d = [d];
                 }
+
                 var jd = d.map(function (data) { return new jayType(data); });
                 var idField = jayType.memberDefinitions.getKeyProperties()[0].name;
                 jd.forEach(function (item) {
                     item[idField] = undefined;
                 });
-                ctx.addMany(jd);
-                
-                //var jayInstance = new jayType(options.data);
-                //ctx.add(jayInstance);
-                ctx.saveChanges()
-                   .then(function () {
-                       //var kendoItem = new modelItemClass(jayInstance.initData);
-                       var data = jd.map(function (j) { return j.initData });
-                       options.success({ "data": data });
-                   })
-                   .fail(function () {
-                       options.error("error");
-                       //alert("error!");
-                   });
-                   
+
+                if (batch) {
+                    ctx.addMany(jd);
+                    ctx.saveChanges()
+                       .then(function () {
+                           //var kendoItem = new modelItemClass(jayInstance.initData);
+                           var data = jd.map(function (j) { return j.initData });
+                           options.success({ "data": data });
+                       })
+                       .fail(function () {
+                           options.error("error");
+                           //alert("error!");
+                       });
+                } else {
+                    
+                }
                 
             },
             update: function (options) {
                 console.log("update");
                 console.dir(arguments);
+
                 ctx.saveChanges().then(function () {
                     //options.data.FullName = 'a';
                     options.success(options.data);
@@ -417,6 +416,7 @@
 
                 console.log("delete");
                 console.dir(arguments);
+                return;
                 var jayType = self.defaultType;
                 var d = options.data;
                 if ("models" in d) {
@@ -436,20 +436,19 @@
                     .fail(function () {
                         options.error();
                     });
-                
-                
-                //console.log("destroy"); console.dir(arguments);
-                //self.toArray(function () {
-                //    options.error(options.data, "OK", "Something");
-                //});
-                //var d = new $.Deferred();
-                //return d.promise();
             },
             setup: function () {
-                console.log("setup"); console.dir(arguments);
+                console.log("setup");
+                console.dir(arguments);
             }
         });
         return TransportClass;
+    });
+
+    var jayDataSource = kendo.data.DataSource.extend({
+        init: function () {
+            kendo.data.DataSource.fn.init.apply(this, arguments);
+        }
     });
 
     $data.Queryable.addMember("asKendoDataSource", function (ds) {
@@ -459,9 +458,7 @@
 
         var model = self.asKendoModel(function (item) { newEntries.push(item); });
 
-        ds = ds || {
-
-        };
+        ds = ds || {};
         //unless user explicitly opts out server side logic
         //we just force it.
         ds.serverPaging = ds.serverPaging || true;
@@ -477,6 +474,6 @@
             data: "data",
             total: "total"
         };
-        return new kendo.data.DataSource(ds);
+        return new jayDataSource(ds);
     });
 })($data);

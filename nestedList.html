@@ -12,9 +12,9 @@
     <script src="http://code.jquery.com/jquery.min.js" type="text/javascript"></script>
 
     <script src="src/js/kendo.web.js"></script>
-    <script src="src/js/kendo.grid.js"></script>
+<!--    <script src="src/js/kendo.grid.js"></script>
     <script src="src/js/kendo.pager.js"></script>
-    <script src="src/js/kendo.listview.js"></script>
+    <script src="src/js/kendo.listview.js"></script>-->
     <!--<script src="src/js/kendo.tabstrip.js"></script>-->
     <script src="examples/content/shared/js/console.js"></script>
 
@@ -89,13 +89,15 @@
             //})
             $('#grid').kendoGrid({
                 dataSource: mydatabase.Products.asKendoDataSource({
-                                error: function () {
+                    batch: false,
+                    error: function () {
                                     console.dir(arguments);
                                     alert("!");
                                 }
                 }),
+                columns: mydatabase.Products.asKendoColumns().prepend({command:["destroy","edit"]}), 
                 pageable: true,
-                editable: "popup",
+                editable: "inline",
                 toolbar: ["create", "save", "cancel"]
             });
 
