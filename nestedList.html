@@ -82,6 +82,7 @@
         });
 
         function startApplication(mydatabase) {
+            db = mydatabase;
             //console.dir(mydatabase);
             
             //.map(function (item) {
@@ -98,6 +99,7 @@
                 columns: mydatabase.Products.asKendoColumns().prepend({command:["destroy","edit"]}), 
                 pageable: true,
                 editable: "inline",
+                sortable: true,
                 toolbar: ["create", "save", "cancel"]
             });
 

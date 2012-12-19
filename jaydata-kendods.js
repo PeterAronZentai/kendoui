@@ -345,7 +345,6 @@
                 var l = qcount.length();
                 jQuery.when(ta, l).then(function (items, total) {
                     //var result = items.map(function (item) { return item instanceof $data.Entity ? new model(item.initData) : item; });
-                    
                     var result = items.map(function (item) {
                         var d = (item instanceof $data.Entity) ? item.initData : item;
                         var kendoItem = item.asKendoObservable();
@@ -358,47 +357,42 @@
                     });
                 });
             },
-            create: function (options) {
+            create: function (options, model) {
+
+                //ctx.addMany()
                 console.log("create");
                 console.dir(arguments);
-                var batch = false;
-                var jayType = self.defaultType;
-                var d = options.data;
-                if ("models" in d) {
-                    d = d.models;
-                    batch = true;
-                };
-
-                if (!(Array.isArray(d))) {
-                    d = [d];
-                }
-
-                var jd = d.map(function (data) { return new jayType(data); });
-                var idField = jayType.memberDefinitions.getKeyProperties()[0].name;
-                jd.forEach(function (item) {
-                    item[idField] = undefined;
-                });
-
-                if (batch) {
-                    ctx.addMany(jd);
-                    ctx.saveChanges()
-                       .then(function () {
-                           //var kendoItem = new modelItemClass(jayInstance.initData);
-                           var data = jd.map(function (j) { return j.initData });
-                           options.success({ "data": data });
-                       })
-                       .fail(function () {
-                           options.error("error");
-                           //alert("error!");
-                       });
+                if (model.length > 1) {
+                    var modelItems = [];
+                    model.forEach(function (modelItem) {
+                        modelItems.push(modelItem.innerInstance());
+                    });
+                    ctx.addMany(modelItems);
+                    ctx.saveChanges().then(function () {
+                        var data = [];
+                        modelItems.forEach(function (modelItem) {
+                            data.push(modelItem.initData);
+                        });
+                        options.success({ data: data });
+                    }).fail(function () {
+                        console.log("error in create");
+                        alert("error in create");
+                        ctx.stateManager.reset();
+                    });
                 } else {
-                    
+                    console.log("save single");
+                    model[0]
+                        .innerInstance()
+                        .save()
+                        .then(function () {
+                            options.success({ data: model[0].innerInstance().initData });
+                        });
                 }
-                
             },
-            update: function (options) {
+            update: function (options, model) {
                 console.log("update");
                 console.dir(arguments);
+
 
                 ctx.saveChanges().then(function () {
                     //options.data.FullName = 'a';
@@ -411,31 +405,50 @@
                 //return false;
             },
 
-            destroy: function (options) {
+            destroy: function (options, model) {
                 //alert("!");
 
                 console.log("delete");
                 console.dir(arguments);
-                return;
-                var jayType = self.defaultType;
-                var d = options.data;
-                if ("models" in d) {
-                    d = d.models;
-                };
-                if (!(Array.isArray(d))) {
-                    d = [d];
-                }
-                var jd = d.map(function (data) { return new jayType(data); });
-                jd.forEach(function (j) {
-                    ctx.remove(j);
-                });
-                ctx.saveChanges()
-                    .then(function () {
-                        options.success({});
-                    })
-                    .fail(function () {
-                        options.error();
+                //if (mo)
+                if (model.length > 1) {
+                    model.forEach(function (item) {
+                        ctx.remove(item.innerInstance());
                     });
+                    ctx.saveChanges().then(function () {
+                        options.success({ data: options.data });
+                    }).fail(function () {
+                        ctx.stateManager.reset();
+                        alert("error in save:" + arguments[0]);
+                        options.error({}, "error", options.data);
+                    });
+                } else {
+                    model[0].innerInstance().remove().then(function () {
+                        options.success({ data: options.data });
+                    }).fail(function () {
+
+                    });
+                }
+                //return;
+                //var jayType = self.defaultType;
+                //var d = options.data;
+                //if ("models" in d) {
+                //    d = d.models;
+                //};
+                //if (!(Array.isArray(d))) {
+                //    d = [d];
+                //}
+                //var jd = d.map(function (data) { return new jayType(data); });
+                //jd.forEach(function (j) {
+                //    ctx.remove(j);
+                //});
+                //ctx.saveChanges()
+                //    .then(function () {
+                //        options.success({});
+                //    })
+                //    .fail(function () {
+                //        options.error();
+                //    });
             },
             setup: function () {
                 console.log("setup");
@@ -448,7 +461,29 @@
     var jayDataSource = kendo.data.DataSource.extend({
         init: function () {
             kendo.data.DataSource.fn.init.apply(this, arguments);
-        }
+        },
+        _promise: function (data, models, type) {
+            var that = this,
+                extend = $.extend,
+                transport = that.transport;
+
+            return $.Deferred(function (deferred) {
+                transport[type].call(transport, extend({
+                    success: function (response) {
+                        deferred.resolve({
+                            response: response,
+                            models: models,
+                            type: type
+                        });
+                    },
+                    error: function (response, status, error) {
+                        deferred.reject(response);
+                        that.error(response, status, error);
+                    }
+                }, data), models
+                );
+            }).promise();
+        },
     });
 
     $data.Queryable.addMember("asKendoDataSource", function (ds) {
