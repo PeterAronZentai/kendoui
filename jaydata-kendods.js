@@ -393,13 +393,29 @@
                 console.log("update");
                 console.dir(arguments);
 
-
-                ctx.saveChanges().then(function () {
-                    //options.data.FullName = 'a';
-                    options.success(options.data);
-                }).fail(function () {
-                    options.error("error");
-                });
+                if (model.length > 1) {
+                    var items = model.map(function (item) { return item.innerInstance() });
+                    items.forEach(function (item) {
+                        ctx.attach(item, true);
+                    });
+                    ctx.saveChanges().then(function () {
+                        options.success();
+                    }).fail(function () {
+                        ctx.stateManager.reset();
+                        alert("error in batch update");
+                        options.error({}, "error");
+                    });
+                } else {
+                    model[0].innerInstance().save().then(function (item) {
+                        options.success();
+                    }).fail(function () { alert("error in update") });
+                }
+                //ctx.saveChanges().then(function () {
+                //    //options.data.FullName = 'a';
+                //    options.success(options.data);
+                //}).fail(function () {
+                //    options.error("error");
+                //});
                 //self.toArray(function () {
                 //});
                 //return false;
