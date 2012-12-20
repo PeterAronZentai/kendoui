@@ -88,55 +88,47 @@
             //.map(function (item) {
             //    return { Product_ID: item.Product_ID, Product_Name: item.Product_Name }
             //})
-            $('#grid').kendoGrid({
-                dataSource: mydatabase.Products
-                                .include("Order_Details")
-                                .include("Category").asKendoDataSource({
-                    batch: false,
-                    error: function () {
-                                    console.dir(arguments);
-                                    alert("!");
-                                }
-                }),
-                columns: [{ command: "edit" },
-                            "Product_ID",
-                            { field: "Category", template: "#= Category.Category_Name #" },
-                            { field: "Order_Details", template: "#=Order_Details.length#"}
-                         ],
-                //{ field: "Category_Products", template: "#= Category.Products.length #" }
-                //columns: mydatabase.Products.asKendoColumns().prepend({command:["destroy","edit"]}), 
-                pageable: true,
-                editable: "inline",
-                sortable: true,
-                toolbar: ["create", "save", "cancel"]
-            });
 
-            var viewModel = function () {
-                var self = this;
-                //this.product = null;
-                //self.product = 'alma';
 
-                //self.init = function () {
-                //    console.dir(this);
-                //    console.dir(arguments);
-                //}
-                //mydatabase.Products.first().then(function (product) {
+            //$('#grid').kendoGrid({
+            //    dataSource: q.asKendoDataSource({
+            //        batch: false,
+            //        error: function () {
+            //                        console.dir(arguments);
+            //                        alert("!");
+            //                    }
+            //    }),
+            //    columns: [{ command: "edit" },
+            //                "Product_ID",
+            //                { field: "Category", template: "#= Category.Category_Name #" },
+            //                { field: "Order_Details", template: "#=Order_Details.length#"}
+            //             ],
+            //    //{ field: "Category_Products", template: "#= Category.Products.length #" }
+            //    //columns: mydatabase.Products.asKendoColumns().prepend({command:["destroy","edit"]}), 
+            //    pageable: true,
+            //    editable: "inline",
+            //    sortable: true,
+            //    toolbar: ["create", "save", "cancel"]
+            //});
 
-                //});
-            }
             //p = new mydatabase.Products.elementType({Product_ID: 0, Product_Name: "ABC" });
             //kendo.bind($('#mvvm'), p.asKendoObservable());
-            mydatabase.Products.first().then(function (product) {
-                p = product;
-                kendo.bind($('#mvvm'), product.asKendoObservable());
-            });
+            //mydatabase.Products.first().then(function (product) {
+            //    p = product;
+            //    kendo.bind($('#mvvm'), product.asKendoObservable());
+            //});
 
 
             //var _ds = mydatabase.Flowers.asKendoDataSource({ pageSize: 5 });
-            //$("#listView").kendoListView({
-            //    dataSource: _ds,
-            //    template: kendo.template($("#template").html())
-            //});
+            var q = mydatabase.Categories.include("Products");
+            
+            $("#lv").kendoListView({
+                dataSource:  {data: [{Category_Name: 'xxx', Products: [{a:1},{a:2}]}]}, // q.asKendoDataSource(),
+                template: kendo.template($("#template").html())
+            });
+
+            //var vm = kendo.observable([{ Category_Name: 'xxx', Products: [{ a: 1 }, { a: 2 }] }]);
+            //kendo.bind($('#lv'), vm);
             //$("#pager").kendoPager({
             //    dataSource: _ds
             //}).data("kendoPager");
@@ -154,7 +146,18 @@
         Name:
         <div data-bind="text: Product_Name"></div>
     </div>-->
+    <div id="lv">
+    </div>
 
+    <script type="text/x-kendo-tmpl" id="template">
+        <div class="product">
+            ${Category_Name},<span data-bind="text: Category_Name"></span>
+        </div>
+        <table>
+            <tbody data-template="row-template" data-bind="source: Products">
+            </tbody>
+        </table>
+    </script>
     <div id="mvvm">
         Name:
         <div data-bind="text: Product_Name"></div>
@@ -163,20 +166,24 @@
     </div>
 
     <script id="row-template" type="text/x-kendo-template">
-        <li data-bind="text: a"></li>
+        <tr><td data-bind="text: Category_Name"></td></tr>
+    </script>
+        <!--<div class="product" data-bind="text: Category_Name"></div>-->
+<!--        <table>
+            <tbody data-template="row-template" data-bind="source: this">
+            </tbody>
+        </table>-->
+
+    <script type="text/x-kendo-tmpl" id="xxxx">
+        <li>${Product_Name}</li>
     </script>
 
-    <div id="listView"></div>
+
+
+    <!--<ul data-template="xxxx" data-bind="source: Products"></ul>-->
     <div id="grid">
-
     </div>
-    <script type="text/x-kendo-tmpl" id="template">
-        <div class="product" style="width:300px;float:left">
-            <img style="width:250px;height:150px" src="${ImageUrl}" />
-            <h3>${Name}</h3>
-            <b>${kendo.toString(Price, "c")}</b>
-        </div>
-    </script>
+    
 
 </body>
 </html>
